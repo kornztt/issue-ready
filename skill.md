@@ -6,20 +6,51 @@ issues 0–100 with deterministic, explainable rules — no LLM, no guessing.
 
 ## Connect
 
-Remote MCP server (after the app is installed on your Atlassian site and the
-site admin enables external tools in Admin > Apps > Sites > <site> >
-Connected apps > IssueReady > Tools):
+Remote MCP server. The app is installed on the developer site
+https://issue-ready.atlassian.net and its `rovo:mcp` module exposes the
+tools below through Atlassian's MCP server:
 
 ```
-https://mcp.atlassian.com/forge/<appId>
+https://mcp.atlassian.com/forge/2731571b-7f8a-4478-975e-945365298219
 ```
 
-`<appId>` is the UUID in `app.id` of `manifest.yml` (the part after
-`ari:cloud:ecosystem::app/`). Example with Claude Code:
+The UUID is the `app.id` in `manifest.yml` (the part after
+`ari:cloud:ecosystem::app/`). It must match the deployed app id
+`2731571b-7f8a-4478-975e-945365298219` — if it doesn't, the tools below
+will not load.
 
-```
-claude mcp add --transport http issue-ready https://mcp.atlassian.com/forge/<appId>
-```
+Steps (Claude Code example; Cursor and VS Code are the same URL, see
+`MCP-USAGE.md` in the repository root for all three):
+
+1. Install IssueReady on your Atlassian site from the install link, and
+   have the site admin enable external tools in Admin > Apps > Sites >
+   `<site>` > Connected apps > IssueReady > Tools.
+2. Add the server:
+   ```
+   claude mcp add --transport http issue-ready https://mcp.atlassian.com/forge/2731571b-7f8a-4478-975e-945365298219
+   ```
+3. When the client asks, sign in with your Atlassian account (OAuth).
+   The server answers 401 until you do — that is expected, not a bug.
+4. Ask e.g. "How healthy is this project's Jira data?" and the client
+   should offer the `project-quality-summary` tool.
+
+### Verification status (2026-11-17, honest)
+
+- The 6 tool payloads were verified locally against the demo data with
+  `node /tmp/mcp-harness.mjs`: `audit-issue` DEMO-3 = 85/A/NEEDS_WORK,
+  `suggest-fixes` DEMO-5 = `[NO_PRIORITY]`, `project-quality-summary` =
+  13 issues, avg 94/100 (A), 11 READY / 1 NEEDS_WORK / 1 BLOCKED,
+  `list-data-debt` worst-first starting at DEMO-5 (41, P0). The harness
+  reproduces the exact handler logic in `src/index.js` with demo data
+  standing in for the Jira fetch.
+- The remote transport was probed the same day: `POST` to the MCP URL
+  returns HTTP 401 (auth required) and the official MCP Inspector
+  reports `auth_required` / "Interactive OAuth requires a TTY".
+- **Not yet done:** a full end-to-end tool call from a third-party
+  client (Claude Code / Cursor) against the live site. That needs an
+  interactive Atlassian OAuth sign-in, which cannot be done from a
+  non-interactive shell. Do not claim it was tested until someone runs
+  step 3–4 above and sees a real tool result.
 
 ## Tools
 
@@ -36,7 +67,11 @@ claude mcp add --transport http issue-ready https://mcp.atlassian.com/forge/<app
 
 - Every project audit is snapshotted (date, average, verdict counts); the
   project page shows the trend, and a scheduled audit re-runs every Monday.
-- The project page can export the current audit as a CSV file.
+- The project page can export the current audit as a CSV file or as a
+  Markdown report, and shows a "Fix first — top 5 priority issues" list
+  (P0/P1/P2, worst first).
+- Scores are deterministic: same issue data, same score, every time.
+  No LLM is involved anywhere in the audit.
 
 ## Rules for the agent
 
