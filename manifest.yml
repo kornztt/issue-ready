@@ -1,0 +1,193 @@
+modules:
+  jira:projectPage:
+    - key: issue-ready-project
+      resource: main
+      resolver:
+        function: resolver
+      render: native
+      title: IssueReady — Data Quality
+  jira:issuePanel:
+    - key: issue-ready-panel
+      resource: panel
+      resolver:
+        function: resolver
+      render: native
+      title: IssueReady — Data Quality
+      icon: resource:icon;icon.svg
+  trigger:
+    - key: issue-audited
+      function: issue-trigger
+      events:
+        - avi:jira:created:issue
+        - avi:jira:updated:issue
+  rovo:agent:
+    - key: issue-ready-agent
+      name: IssueReady Data Auditor
+      description: >
+        Audits Jira issues for data quality and tells you what is blocking
+        triage. Answers only from measured audit results, never guesses.
+      prompt: resource:agent-prompt;prompt.md
+      conversationStarters:
+        - How healthy is this project's Jira data?
+        - Which issues are blocking triage right now?
+        - Audit DEMO-3 and tell me how to fix it
+        - Are there duplicate issues in this project?
+        - Fix all fixable issues in this project
+      actions:
+        - audit-issue
+        - list-data-debt
+        - project-quality-summary
+        - suggest-fixes
+        - apply-fixes
+        - bulk-apply-fixes
+  action:
+    - key: audit-issue
+      name: Audit a Jira issue
+      function: audit-issue-fn
+      actionVerb: GET
+      description: >
+        Scores one Jira issue 0-100 on data quality (completeness, ownership,
+        planning, labels, freshness, linkage) and lists every failed check with
+        its severity. Use this when asked about a single issue.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: "The Jira issue key, for example DEMO-3."
+    - key: list-data-debt
+      name: List data debt in a project
+      function: list-data-debt-fn
+      actionVerb: GET
+      description: >
+        Lists the worst-scoring open issues in a project, worst first, with
+        score, grade and verdict. Use this when asked what is blocking triage or
+        which issues need work.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: "The Jira project key, for example DEMO."
+        limit:
+          title: Max issues to list
+          type: number
+          required: false
+          description: "How many worst issues to return (default 5, max 20)."
+    - key: project-quality-summary
+      name: Project data-quality summary
+      function: project-summary-fn
+      actionVerb: GET
+      description: >
+        Returns the project-level data-quality report: average score, grade,
+        verdict counts, top recurring problems and likely duplicates.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: "The Jira project key, for example DEMO."
+    - key: suggest-fixes
+      name: Suggest fixes for an issue
+      function: suggest-fixes-fn
+      actionVerb: GET
+      description: >
+        Lists the safe, one-click fixes available for an issue (set a priority,
+        normalise labels, post an audit comment). Does not change anything by
+        itself.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: "The Jira issue key, for example DEMO-3."
+    - key: apply-fixes
+      name: Apply suggested fixes to an issue
+      function: apply-fixes-fn
+      actionVerb: UPDATE
+      description: >
+        Applies the safe fixes for an issue: sets a priority when missing and
+        normalises label casing. Ask the user to confirm before calling this
+        action.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: "The Jira issue key, for example DEMO-3."
+    - key: bulk-apply-fixes
+      name: Fix all fixable issues in a project
+      function: bulk-apply-fixes-fn
+      actionVerb: UPDATE
+      description: >
+        Applies the safe one-click fixes to every fixable issue in a project
+        (missing priority, label casing, audit comment). Skipped issues are
+        reported, never touched. Confirm with the user first.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: "The Jira project key, for example DEMO."
+  rovo:mcp:
+    - key: issue-ready-mcp
+      name: IssueReady MCP
+      tools:
+        - audit-issue
+        - list-data-debt
+        - project-quality-summary
+        - suggest-fixes
+        - apply-fixes
+        - bulk-apply-fixes
+  scheduledTrigger:
+    - key: weekly-audit
+      function: weekly-audit-fn
+      interval: week
+  webtrigger:
+    - key: csv-export
+      function: csv-export-fn
+    - key: md-report
+      function: md-export-fn
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: audit-issue-fn
+      handler: index.auditIssue
+    - key: list-data-debt-fn
+      handler: index.listDataDebt
+    - key: project-summary-fn
+      handler: index.projectSummary
+    - key: suggest-fixes-fn
+      handler: index.suggestFixes
+    - key: apply-fixes-fn
+      handler: index.applyFixes
+    - key: bulk-apply-fixes-fn
+      handler: index.bulkApplyFixes
+    - key: weekly-audit-fn
+      handler: index.weeklyAudit
+    - key: csv-export-fn
+      handler: index.exportCsv
+    - key: md-export-fn
+      handler: index.exportMd
+    - key: issue-trigger
+      handler: index.onIssueEvent
+resources:
+  - key: main
+    path: src/frontend/project-page.jsx
+  - key: panel
+    path: src/frontend/issue-panel.jsx
+  - key: agent-prompt
+    path: src/prompts
+  - key: icon
+    path: static
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - storage:app
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/2731571b-7f8a-4478-975e-945365298219
