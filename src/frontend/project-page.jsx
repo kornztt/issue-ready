@@ -1,9 +1,18 @@
-import ForgeReconciler, {
+import * as ForgeReactModule from '@forge/react';
+import {
   Box, Button, Heading, Lozenge, SectionMessage, Stack, Text,
-  invoke, useProductContext,
+  useProductContext,
 } from '@forge/react';
-import { router } from '@forge/bridge';
-import { useEffect, useState } from 'react';
+// Namespace import on purpose: the deployed bundle crashed on default
+// imports of CJS Forge packages ("out_namespaceObject is not a
+// constructor"), so take the reconciler off the namespace's .default.
+const ForgeReconciler = ForgeReactModule.default;
+// @forge/bridge is CJS and @forge/react does not re-export invoke at all,
+// so take both off the namespace object (same pattern as ForgeReconciler).
+import * as ForgeBridgeModule from '@forge/bridge';
+const invoke = ForgeBridgeModule.invoke;
+const router = ForgeBridgeModule.router;
+import React, { useEffect, useState } from 'react';
 
 function verdictAppearance(v) {
   // Lozenge appearances in @forge/react: default | success | inprogress |

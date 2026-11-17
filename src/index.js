@@ -1,6 +1,6 @@
-import Resolver from '@forge/resolver';
-import api, { webTrigger } from '@forge/api';
-import kvs from '@forge/kvs';
+import { makeResolver } from '@forge/resolver';
+import { asApp, asUser, route, webTrigger } from '@forge/api';
+import { kvs } from '@forge/kvs';
 import { scoreIssue, scoreProject, severityFor } from './lib/scoring.js';
 import { DEMO_ISSUES } from './lib/demo-data.js';
 import { toCsv } from './lib/csv.js';
@@ -46,9 +46,9 @@ function toIssueShape(j) {
   };
 }
 
-async function fetchProjectIssues(projectKey, asApp = false) {
-  const jira = asApp ? api.asApp() : api.asUser();
-  const res = await jira.requestJira('/rest/api/3/search/jql', {
+async function fetchProjectIssues(projectKey, useAsApp = false) {
+  const jira = useAsApp ? asApp() : asUser();
+  const res = await jira.requestJira(route`/rest/api/3/search/jql`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -68,7 +68,7 @@ async function fetchProjectIssues(projectKey, asApp = false) {
 }
 
 async function fetchIssue(issueKey) {
-  const res = await api.asUser().requestJira(`/rest/api/3/issue/${issueKey}`);
+  const res = await asUser().requestJira(route`/rest/api/3/issue/${issueKey}`);
   if (!res.ok) throw new Error(`Jira issue ${issueKey} not found: ${res.status}`);
   return toIssueShape(await res.json());
 }
@@ -82,7 +82,7 @@ async function applyFixToIssue(issueKey, fixType) {
   const applied = [];
   if (fixType === 'set-priority' || fixType === 'all') {
     if (!issue.priority) {
-      await api.asUser().requestJira(`/rest/api/3/issue/${issueKey}`, {
+      await asUser().requestJira(route`/rest/api/3/issue/${issueKey}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields: { priority: { name: 'Medium' } } }),
@@ -93,7 +93,7 @@ async function applyFixToIssue(issueKey, fixType) {
   if (fixType === 'normalize-labels' || fixType === 'all') {
     const fixed = [...new Set(issue.labels.map(normaliseLabel))];
     if (JSON.stringify(fixed) !== JSON.stringify(issue.labels)) {
-      await api.asUser().requestJira(`/rest/api/3/issue/${issueKey}`, {
+      await asUser().requestJira(route`/rest/api/3/issue/${issueKey}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields: { labels: fixed } }),
@@ -104,7 +104,7 @@ async function applyFixToIssue(issueKey, fixType) {
   if (fixType === 'post-audit-comment' || fixType === 'all') {
     const audit = scoreIssue(issue);
     const lines = audit.findings.map((f) => `- [${f.severity}] ${f.code}: ${f.message}`).join('\n');
-    await api.asUser().requestJira(`/rest/api/3/issue/${issueKey}/comment`, {
+    await asUser().requestJira(route`/rest/api/3/issue/${issueKey}/comment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -139,53 +139,55 @@ async function recordSnapshot(projectKey, report) {
   }
 }
 
-async function auditProject(projectKey, asApp = false) {
-  const issues = await fetchProjectIssues(projectKey, asApp);
+async function auditProject(projectKey, useAsApp = false) {
+  const issues = await fetchProjectIssues(projectKey, useAsApp);
   const report = scoreProject(issues);
   await recordSnapshot(projectKey, report);
   return report;
 }
 
 // ------------------------------------------------------------------ UI resolver
-const resolver = new Resolver();
+// Named import (makeResolver) on purpose: the deployed bundle crashed at
+// `new Resolver()` with "out_namespaceObject is not a constructor", i.e.
+// the bundler's default-import interop for @forge/resolver. makeResolver
+// takes the same handlers object and returns the definitions.
+export const handler = makeResolver({
+  getProjectAudit: async ({ payload }) => {
+    return auditProject(payload.projectKey);
+  },
 
-resolver.define('getProjectAudit', async ({ payload }) => {
-  return auditProject(payload.projectKey);
+  getAuditHistory: async ({ payload }) => {
+    const history = (await kvs.get(`history:${payload.projectKey}`)) || [];
+    return { projectKey: payload.projectKey, history, limit: HISTORY_LIMIT };
+  },
+
+  getCsvExportUrl: async ({ payload }) => {
+    const base = await webTrigger.getUrl('csv-export');
+    return { url: `${base}?projectKey=${encodeURIComponent(payload.projectKey)}` };
+  },
+
+  getMdExportUrl: async ({ payload }) => {
+    const base = await webTrigger.getUrl('md-report');
+    return { url: `${base}?projectKey=${encodeURIComponent(payload.projectKey)}` };
+  },
+
+  applyFixAll: async ({ payload }) => bulkApplyFixes(payload),
+
+  getDemoAudit: async () => scoreProject(DEMO_ISSUES),
+
+  getIssueAudit: async ({ payload }) => {
+    const issue = await fetchIssue(payload.issueKey);
+    return scoreIssue(issue);
+  },
+
+  getDemoIssueAudit: async ({ payload }) => {
+    const issue = DEMO_ISSUES.find((i) => i.key === payload.issueKey);
+    if (!issue) throw new Error(`Demo issue ${payload.issueKey} not found`);
+    return scoreIssue(issue);
+  },
+
+  applyFix: async ({ payload }) => applyFixToIssue(payload.issueKey, payload.fixType),
 });
-
-resolver.define('getAuditHistory', async ({ payload }) => {
-  const history = (await kvs.get(`history:${payload.projectKey}`)) || [];
-  return { projectKey: payload.projectKey, history, limit: HISTORY_LIMIT };
-});
-
-resolver.define('getCsvExportUrl', async ({ payload }) => {
-  const base = await webTrigger.getUrl('csv-export');
-  return { url: `${base}?projectKey=${encodeURIComponent(payload.projectKey)}` };
-});
-
-resolver.define('getMdExportUrl', async ({ payload }) => {
-  const base = await webTrigger.getUrl('md-report');
-  return { url: `${base}?projectKey=${encodeURIComponent(payload.projectKey)}` };
-});
-
-resolver.define('applyFixAll', async ({ payload }) => bulkApplyFixes(payload));
-
-resolver.define('getDemoAudit', async () => scoreProject(DEMO_ISSUES));
-
-resolver.define('getIssueAudit', async ({ payload }) => {
-  const issue = await fetchIssue(payload.issueKey);
-  return scoreIssue(issue);
-});
-
-resolver.define('getDemoIssueAudit', async ({ payload }) => {
-  const issue = DEMO_ISSUES.find((i) => i.key === payload.issueKey);
-  if (!issue) throw new Error(`Demo issue ${payload.issueKey} not found`);
-  return scoreIssue(issue);
-});
-
-resolver.define('applyFix', async ({ payload }) => applyFixToIssue(payload.issueKey, payload.fixType));
-
-export const handler = resolver.getDefinitions();
 
 // ------------------------------------------------------------------ Rovo actions
 // Each action returns plain JSON the agent can quote. Scores are always
@@ -352,7 +354,7 @@ export async function onIssueEvent(event) {
   try {
     const key = event?.issue?.key;
     if (!key) return;
-    const res = await api.asApp().requestJira(`/rest/api/3/issue/${key}`);
+    const res = await asApp().requestJira(route`/rest/api/3/issue/${key}`);
     if (!res.ok) return;
     const audit = scoreIssue(toIssueShape(await res.json()));
     await kvs.set(`audit:${key}`, { ...audit, at: new Date().toISOString() });

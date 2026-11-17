@@ -1,8 +1,17 @@
-import ForgeReconciler, {
+import * as ForgeReactModule from '@forge/react';
+import {
   Box, Button, Heading, Lozenge, SectionMessage, Stack, Text,
-  invoke, useProductContext,
+  useProductContext,
 } from '@forge/react';
-import { useEffect, useState } from 'react';
+// Namespace import on purpose: the deployed bundle crashed on default
+// imports of CJS Forge packages ("out_namespaceObject is not a
+// constructor"), so take the reconciler off the namespace's .default.
+const ForgeReconciler = ForgeReactModule.default;
+// @forge/react does not export invoke; it lives in @forge/bridge (CJS),
+// so take it off the namespace object (same pattern as ForgeReconciler).
+import * as ForgeBridgeModule from '@forge/bridge';
+const invoke = ForgeBridgeModule.invoke;
+import React, { useEffect, useState } from 'react';
 
 function severityAppearance(s) {
   return s === 'critical' ? 'removed' : s === 'warning' ? 'inprogress' : 'default';
@@ -10,7 +19,9 @@ function severityAppearance(s) {
 
 const App = () => {
   const context = useProductContext();
-  const issueKey = context?.extension?.issue?.key || context?.extension?.issueKey || '';
+  // useProductContext() is empty on first render (bridge handshake still
+  // pending) and fills in later; read the key from every known path.
+  const issueKey = context?.extension?.issue?.key || context?.extension?.issueKey || context?.platformContext?.issueKey || '';
   const [audit, setAudit] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -34,7 +45,9 @@ const App = () => {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  // Do not audit on mount: on first render the context is still empty and
+  // issueKey is ''. Wait until the key arrives, then audit once.
+  useEffect(() => { if (issueKey) load(); }, [issueKey]);
 
   return (
     <Stack space="space.200">
