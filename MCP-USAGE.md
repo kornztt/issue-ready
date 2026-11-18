@@ -1,9 +1,9 @@
 # IssueReady MCP — how to connect from a third-party client
 
 > App: **IssueReady** (Jira data-quality auditor, Codegeist 2026).
-> Deployed app id: `2731571b-7f8a-4478-975e-945365298219`
+> Deployed app id: `24c0092e-8290-46cc-9c49-7cc478bdf9a9`
 > (matches `app.id` in `issue-ready/manifest.yml`).
-> MCP server URL: `https://mcp.atlassian.com/forge/2731571b-7f8a-4478-975e-945365298219`
+> MCP server URL: `https://mcp.atlassian.com/forge/24c0092e-8290-46cc-9c49-7cc478bdf9a9`
 > Repo: https://github.com/kornztt/issue-ready (`skill.md` is the
 > machine-readable version of this page).
 
@@ -31,7 +31,7 @@ shows.
 ### Claude Code
 
 ```bash
-claude mcp add --transport http issue-ready https://mcp.atlassian.com/forge/2731571b-7f8a-4478-975e-945365298219
+claude mcp add --transport http issue-ready https://mcp.atlassian.com/forge/24c0092e-8290-46cc-9c49-7cc478bdf9a9
 ```
 
 Then sign in with your Atlassian account when prompted, and try:
@@ -49,7 +49,7 @@ Settings > Tools & Integrations > New MCP Server, or add to
 {
   "mcpServers": {
     "issue-ready": {
-      "url": "https://mcp.atlassian.com/forge/2731571b-7f8a-4478-975e-945365298219"
+      "url": "https://mcp.atlassian.com/forge/24c0092e-8290-46cc-9c49-7cc478bdf9a9"
     }
   }
 }
@@ -67,7 +67,7 @@ Add to your MCP config (`.vscode/mcp.json` or user settings):
   "servers": {
     "issue-ready": {
       "type": "http",
-      "url": "https://mcp.atlassian.com/forge/2731571b-7f8a-4478-975e-945365298219"
+      "url": "https://mcp.atlassian.com/forge/24c0092e-8290-46cc-9c49-7cc478bdf9a9"
     }
   }
 }
@@ -128,7 +128,7 @@ Rules for the agent using these tools:
 - **401 on first connect** — normal. Complete the Atlassian OAuth
   sign-in in your MCP client and retry.
 - **Tools don't appear** — check the app id in the URL matches
-  `2731571b-7f8a-4478-975e-945365298219`, and that the site admin
+  `24c0092e-8290-46cc-9c49-7cc478bdf9a9`, and that the site admin
   enabled external tools for IssueReady (see Prerequisites).
 - **"Issue not found"** — the tool talks to your site's real Jira
   data. `DEMO-3` / `DEMO-5` only exist in the demo data set loaded

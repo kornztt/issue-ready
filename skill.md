@@ -11,12 +11,12 @@ https://issue-ready.atlassian.net and its `rovo:mcp` module exposes the
 tools below through Atlassian's MCP server:
 
 ```
-https://mcp.atlassian.com/forge/2731571b-7f8a-4478-975e-945365298219
+https://mcp.atlassian.com/forge/24c0092e-8290-46cc-9c49-7cc478bdf9a9
 ```
 
 The UUID is the `app.id` in `manifest.yml` (the part after
 `ari:cloud:ecosystem::app/`). It must match the deployed app id
-`2731571b-7f8a-4478-975e-945365298219` — if it doesn't, the tools below
+`24c0092e-8290-46cc-9c49-7cc478bdf9a9` — if it doesn't, the tools below
 will not load.
 
 Steps (Claude Code example; Cursor and VS Code are the same URL, see
@@ -27,7 +27,7 @@ Steps (Claude Code example; Cursor and VS Code are the same URL, see
    `<site>` > Connected apps > IssueReady > Tools.
 2. Add the server:
    ```
-   claude mcp add --transport http issue-ready https://mcp.atlassian.com/forge/2731571b-7f8a-4478-975e-945365298219
+   claude mcp add --transport http issue-ready https://mcp.atlassian.com/forge/24c0092e-8290-46cc-9c49-7cc478bdf9a9
    ```
 3. When the client asks, sign in with your Atlassian account (OAuth).
    The server answers 401 until you do — that is expected, not a bug.
