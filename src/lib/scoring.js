@@ -148,32 +148,32 @@ const GUIDANCE_BUILDERS = {
   NO_LABELS: () => ({
     problem: 'No labels — the issue is invisible to label-based triage, filters and reports.',
     how: "Add at least one lowercase-hyphen label naming the area or theme (for example 'auth' or 'checkout').",
-    outcome: 'Adding labels restores up to 8 taxonomy points.',
+    outcome: 'Adding labels restores up to 8 label points.',
   }),
   LABEL_CASE: ({ labels }) => ({
     problem: `Labels use inconsistent casing or spaces (${labels}) — filters treat them as different labels.`,
     how: "Rename the labels to lowercase-hyphen form (for example 'Auth' → 'auth', 'login page' → 'login-page'). The one-click fix does this automatically.",
-    outcome: 'Consistent labels restore up to 4 taxonomy points. One-click fix available.',
+    outcome: 'Consistent labels restore up to 4 label points. One-click fix available.',
   }),
   DUPLICATE_LABELS: ({ labels }) => ({
     problem: `Duplicate labels (case-insensitive): ${labels} — the same label appears twice under different casing.`,
     how: 'Remove the duplicates so each label appears once, in lowercase-hyphen form. The one-click fix does this automatically.',
-    outcome: 'De-duplicated labels restore up to 3 taxonomy points. One-click fix available.',
+    outcome: 'De-duplicated labels restore up to 3 label points. One-click fix available.',
   }),
   NO_COMPONENT: () => ({
     problem: 'No component set — ownership by area is unclear.',
     how: 'Set the Component field to the part of the product this issue belongs to.',
-    outcome: 'A component restores up to 3 taxonomy points.',
+    outcome: 'A component restores up to 3 label points.',
   }),
   STALE_30D: ({ ageDays }) => ({
     problem: `Open issue untouched for ${ageDays} days — it may be forgotten or no longer relevant.`,
     how: 'Open the issue and either update it (comment with the current status), assign it, or close it if it is no longer needed.',
-    outcome: 'Touching or closing the issue restores up to 5 freshness points.',
+    outcome: 'Updating or closing the issue restores up to 5 freshness points.',
   }),
   STALE_90D: ({ ageDays }) => ({
     problem: `Open issue untouched for ${ageDays} days — probably stale or forgotten.`,
     how: 'Open the issue and either update it (comment with the current status and next step) or close it if it is no longer needed.',
-    outcome: 'Touching or closing the issue restores up to 10 freshness points.',
+    outcome: 'Updating or closing the issue restores up to 10 freshness points.',
   }),
   SUBTASK_NO_PARENT: () => ({
     problem: 'Sub-task has no parent issue — it floats outside any parent issue\u2019s plan.',
