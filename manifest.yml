@@ -143,11 +143,6 @@ modules:
     - key: weekly-audit
       function: weekly-audit-fn
       interval: week
-  webtrigger:
-    - key: csv-export
-      function: csv-export-fn
-    - key: md-report
-      function: md-export-fn
   function:
     - key: resolver
       handler: index.handler
@@ -165,10 +160,6 @@ modules:
       handler: index.bulkApplyFixes
     - key: weekly-audit-fn
       handler: index.weeklyAudit
-    - key: csv-export-fn
-      handler: index.exportCsv
-    - key: md-export-fn
-      handler: index.exportMd
     - key: issue-trigger
       handler: index.onIssueEvent
 resources:

@@ -11,7 +11,6 @@ const ForgeReconciler = ForgeReactModule.default;
 // so take both off the namespace object (same pattern as ForgeReconciler).
 import * as ForgeBridgeModule from '@forge/bridge';
 const invoke = ForgeBridgeModule.invoke;
-const router = ForgeBridgeModule.router;
 import React, { useEffect, useState } from 'react';
 
 function verdictAppearance(v) {
@@ -167,12 +166,24 @@ const App = () => {
     setLoading(false);
   };
 
+  // Downloads file content returned by an authenticated resolver call.
+  // No public URL is involved: the resolver only runs for a logged-in Jira
+  // user with access to the project.
+  const downloadFile = ({ filename, contentType, body }) => {
+    const blob = new Blob([body], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const exportCsv = async () => {
     if (!projectKey || source !== 'live') return;
     setLoading(true); setError(null);
     try {
-      const { url } = await invoke('getCsvExportUrl', { projectKey });
-      await router.open(url);
+      downloadFile(await invoke('getCsvExport', { projectKey }));
     } catch (e) { setError(String(e)); }
     setLoading(false);
   };
@@ -181,8 +192,7 @@ const App = () => {
     if (!projectKey || source !== 'live') return;
     setLoading(true); setError(null);
     try {
-      const { url } = await invoke('getMdExportUrl', { projectKey });
-      await router.open(url);
+      downloadFile(await invoke('getMdExport', { projectKey }));
     } catch (e) { setError(String(e)); }
     setLoading(false);
   };

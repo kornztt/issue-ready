@@ -1,5 +1,5 @@
 import { makeResolver } from '@forge/resolver';
-import { asApp, asUser, route, webTrigger } from '@forge/api';
+import { asApp, asUser, route } from '@forge/api';
 import { kvs } from '@forge/kvs';
 import { scoreIssue, scoreProject, severityFor } from './lib/scoring.js';
 import { DEMO_ISSUES } from './lib/demo-data.js';
@@ -161,14 +161,26 @@ export const handler = makeResolver({
     return { projectKey: payload.projectKey, history, limit: HISTORY_LIMIT };
   },
 
-  getCsvExportUrl: async ({ payload }) => {
-    const base = await webTrigger.getUrl('csv-export');
-    return { url: `${base}?projectKey=${encodeURIComponent(payload.projectKey)}` };
+  // Exports return file content directly through the authenticated resolver
+  // (no public webtrigger URL): only a logged-in Jira user with access to
+  // the project can download a report. fetchProjectIssues defaults to
+  // asUser, so the export also respects the caller's own permissions.
+  getCsvExport: async ({ payload }) => {
+    const issues = await fetchProjectIssues(payload.projectKey);
+    return {
+      filename: `issue-ready-${payload.projectKey}-audit.csv`,
+      contentType: 'text/csv; charset=utf-8',
+      body: toCsv(scoreProject(issues)),
+    };
   },
 
-  getMdExportUrl: async ({ payload }) => {
-    const base = await webTrigger.getUrl('md-report');
-    return { url: `${base}?projectKey=${encodeURIComponent(payload.projectKey)}` };
+  getMdExport: async ({ payload }) => {
+    const issues = await fetchProjectIssues(payload.projectKey);
+    return {
+      filename: `issue-ready-${payload.projectKey}-audit.md`,
+      contentType: 'text/markdown; charset=utf-8',
+      body: toMarkdown(scoreProject(issues), { projectKey: payload.projectKey }),
+    };
   },
 
   applyFixAll: async ({ payload }) => bulkApplyFixes(payload),
@@ -298,53 +310,6 @@ export async function weeklyAudit() {
     }
   }
   return { audited };
-}
-
-// ------------------------------------------------------------------ CSV export (webtrigger)
-// GET ?projectKey=XXX -> the current audit as a CSV file download.
-export async function exportCsv(request) {
-  const projectKey = request?.queryParameters?.projectKey?.[0];
-  if (!projectKey) {
-    return { statusCode: 400, body: 'Missing required query parameter: projectKey' };
-  }
-  try {
-    const issues = await fetchProjectIssues(projectKey, true);
-    const csv = toCsv(scoreProject(issues));
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': ['text/csv; charset=utf-8'],
-        'Content-Disposition': [`attachment; filename="issue-ready-${projectKey}-audit.csv"`],
-      },
-      body: csv,
-    };
-  } catch (e) {
-    return { statusCode: 500, body: `IssueReady CSV export failed: ${e.message}` };
-  }
-}
-
-// ------------------------------------------------------------------ Markdown export (webtrigger)
-// GET ?projectKey=XXX -> the current audit as a Markdown report download.
-// Mirrors exportCsv; only the formatter and the file type differ.
-export async function exportMd(request) {
-  const projectKey = request?.queryParameters?.projectKey?.[0];
-  if (!projectKey) {
-    return { statusCode: 400, body: 'Missing required query parameter: projectKey' };
-  }
-  try {
-    const issues = await fetchProjectIssues(projectKey, true);
-    const md = toMarkdown(scoreProject(issues), { projectKey });
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': ['text/markdown; charset=utf-8'],
-        'Content-Disposition': [`attachment; filename="issue-ready-${projectKey}-audit.md"`],
-      },
-      body: md,
-    };
-  } catch (e) {
-    return { statusCode: 500, body: `IssueReady Markdown export failed: ${e.message}` };
-  }
 }
 
 // ------------------------------------------------------------------ trigger
